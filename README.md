@@ -1,62 +1,45 @@
 # Fast-Planner
 
-**Fast-Planner** is developed aiming to enable quadrotor fast flight in complex unknown environments. It contains a rich set of carefully designed planning algorithms. It also provides a foundational code framework and algorithms that support several popular open-source drone projects, including [ego-planner](https://github.com/ZJU-FAST-Lab/ego-planner),
-[FUEL](https://github.com/HKUST-Aerial-Robotics/FUEL) and [RACER](https://github.com/SYSU-STAR/RACER), etc.
+**Fast-Planner** 是一个为四旋翼无人机在复杂未知环境中实现快速飞行而开发的规划框架。它包含了一套精心设计的规划算法，同时为一些流行的开源无人机项目（如 [ego-planner](https://github.com/ZJU-FAST-Lab/ego-planner)、[FUEL](https://github.com/HKUST-Aerial-Robotics/FUEL) 和 [RACER](https://github.com/SYSU-STAR/RACER)）提供了基础的代码框架和算法支持。
 
-**News**: 
+**最新消息：**
 
-- __Mar 13, 2021__: Code for fast autonomous exploration is available now! Check this [repo](https://github.com/HKUST-Aerial-Robotics/FUEL) for more details.
+- **2021年3月13日**：快速自主探索的代码现已开放！详情请查看 [此仓库](https://github.com/HKUST-Aerial-Robotics/FUEL)。
+- **2020年10月20日**：Fast-Planner 被扩展并应用于快速自主探索。详情请查看 [此仓库](https://github.com/HKUST-Aerial-Robotics/FUEL)。
 
-- __Oct 20, 2020__: Fast-Planner is extended and applied to fast autonomous exploration. Check this [repo](https://github.com/HKUST-Aerial-Robotics/FUEL) for more details.
-
-__Authors__: [Boyu Zhou](http://sysu-star.com) and [Shaojie Shen](http://uav.ust.hk/group/) from the [HUKST Aerial Robotics Group](http://uav.ust.hk/), [Fei Gao](http://zju-fast.com/fei-gao/) from ZJU FAST Lab.
-<!-- - __B-spline trajectory optimization guided by topological paths__:
-<p align="center">
-  <img src="https://github.com/HKUST-Aerial-Robotics/TopoTraj/blob/master/files/icra20_1.gif" width = "420" height = "237"/>
-  <img src="https://github.com/HKUST-Aerial-Robotics/TopoTraj/blob/master/files/icra20_2.gif" width = "420" height = "237"/>
-</p> -->
+**作者**：来自 [HUKST Aerial Robotics Group](http://uav.ust.hk/) 的 [Boyu Zhou](http://sysu-star.com) 和 [Shaojie Shen](http://uav.ust.hk/group/)，以及来自 ZJU FAST Lab 的 [Fei Gao](http://zju-fast.com/fei-gao/)。
 
 <p align="center">
   <img src="files/raptor1.gif" width = "400" height = "225"/>
   <img src="files/raptor2.gif" width = "400" height = "225"/>
   <img src="files/icra20_2.gif" width = "400" height = "225"/>
   <img src="files/ral19_2.gif" width = "400" height = "225"/>
-  <!-- <img src="files/icra20_1.gif" width = "320" height = "180"/> -->
 </p>
 
-Complete videos: 
-[video1](https://www.youtube.com/watch?v=NvR8Lq2pmPg&feature=emb_logo),
-[video2](https://www.youtube.com/watch?v=YcEaFTjs-a0), 
-[video3](https://www.youtube.com/watch?v=toGhoGYyoAY). 
-Demonstrations about this work have been reported on the IEEE Spectrum: [page1](https://spectrum.ieee.org/automaton/robotics/robotics-hardware/video-friday-nasa-lemur-robot), [page2](https://spectrum.ieee.org/automaton/robotics/robotics-hardware/video-friday-india-space-humanoid-robot),
-[page3](https://spectrum.ieee.org/automaton/robotics/robotics-hardware/video-friday-soft-exoskeleton-glove-extra-thumb) (search for _HKUST_ in the pages).
+完整视频：
+[视频1](https://www.youtube.com/watch?v=NvR8Lq2pmPg&feature=emb_logo)、
+[视频2](https://www.youtube.com/watch?v=YcEaFTjs-a0)、
+[视频3](https://www.youtube.com/watch?v=toGhoGYyoAY)。
+相关演示已在 IEEE Spectrum 报道：[页面1](https://spectrum.ieee.org/automaton/robotics/robotics-hardware/video-friday-nasa-lemur-robot)、[页面2](https://spectrum.ieee.org/automaton/robotics/robotics-hardware/video-friday-india-space-humanoid-robot)、[页面3](https://spectrum.ieee.org/automaton/robotics/robotics-hardware/video-friday-soft-exoskeleton-glove-extra-thumb)（在页面中搜索 _HKUST_）。
 
-To run this project in minutes, check [Quick Start](#1-Quick-Start). Check other sections for more detailed information.
+如果本项目对您有帮助，请为我们加颗星 :star:！我们付出了巨大的努力来开发和维护它 :grin::grin:。
 
-Please kindly star :star: this project if it helps you. We take great efforts to develope and maintain it :grin::grin:.
+## 目录
 
+* [快速开始](#1-快速开始)
+* [算法与论文](#2-算法与论文)
+* [安装与配置](#3-安装与配置)
+* [运行仿真](#4-运行仿真)
+* [在项目中使用](#5-在项目中使用)
+* [更新日志](#6-更新日志)
+* [已知问题](#已知问题)
 
+## 1. 快速开始
 
+本项目已在 Ubuntu 18.04（ROS Melodic）和 20.04（ROS Noetic）上测试。
 
-
-
-## Table of Contents
-
-* [Quick Start](#1-Quick-Start)
-* [Algorithms and Papers](#2-Algorithms-and-Papers)
-* [Setup and Config](#3-Setup-and-Config)
-* [Run Simulations](#4-run-simulations)
-* [Use in Your Application](#5-use-in-your-application)
-* [Updates](#6-updates)
-* [Known issues](#known-issues)
-
-
-## 1. Quick Start
-
-This project has been tested on Ubuntu 18.04(ROS Melodic) and 20.04(ROS Noetic).
-
-Firstly, you should install __nlopt v2.7.1__:
-```
+首先，您需要安装 **nlopt v2.7.1**：
+```bash
 git clone -b v2.7.1 https://github.com/stevengj/nlopt.git
 cd nlopt
 mkdir build
@@ -66,74 +49,64 @@ make
 sudo make install
 ```
 
-Next, you can run the following commands to install other required tools:
-```
+接下来，安装其他必要工具：
+```bash
 sudo apt-get install libarmadillo-dev
 ```
 
-Then simply clone and compile our package (using ssh here):
-
-```
+然后克隆并编译本项目：
+```bash
 cd ${YOUR_WORKSPACE_PATH}/src
 git clone https://github.com/HKUST-Aerial-Robotics/Fast-Planner.git
-cd ../ 
+cd ../
 catkin_make
 ```
 
-You may check the detailed [instruction](#3-setup-and-config) to setup the project. 
-After compilation you can start the visualization by: 
-
-```
+您可以查看详细的[安装说明](#3-安装与配置)以完成项目设置。
+编译完成后，启动可视化：
+```bash
 source devel/setup.bash && roslaunch plan_manage rviz.launch
 ```
-and start a simulation (run in a new terminals): 
-```
+并在新终端中启动仿真：
+```bash
 source devel/setup.bash && roslaunch plan_manage kino_replan.launch
 ```
-You will find the random map and the drone in ```Rviz```. You can select goals for the drone to reach using the ```2D Nav Goal``` tool. A sample simulation is showed [here](#demo1).
+您将在 ```Rviz``` 中看到随机生成的地图和无人机。可以使用 ```2D Nav Goal``` 工具为无人机选择目标点。
 
+## 2. 算法与论文
 
-## 2. Algorithms and Papers
+本项目包含一组鲁棒且计算高效的四旋翼快速飞行规划算法：
+- 动态可行路径搜索
+- 基于 B 样条的轨迹优化
+- 拓扑路径搜索及路径引导优化
+- 感知优化规划策略（即将发布）
 
-The project contains a collection of robust and computationally efficient algorithms for quadrotor fast flight:
-* Kinodynamic path searching
-* B-spline-based trajectory optimization
-* Topological path searching and path-guided optimization
-* Perception-aware planning strategy (to appear)
+详细算法请参考以下论文。
 
-These methods are detailed in our papers listed below. 
+如果您在研究中使用本项目，请至少引用以下论文之一：[Bibtex](files/bib.txt)。
 
-Please cite at least one of our papers if you use this project in your research: [Bibtex](files/bib.txt).
+- [**Robust and Efficient Quadrotor Trajectory Generation for Fast Autonomous Flight**](https://ieeexplore.ieee.org/document/8758904), Boyu Zhou, Fei Gao, Luqi Wang, Chuhao Liu and Shaojie Shen, IEEE Robotics and Automation Letters (**RA-L**), 2019.
+- [**Robust Real-time UAV Replanning Using Guided Gradient-based Optimization and Topological Paths**](https://arxiv.org/abs/1912.12644), Boyu Zhou, Fei Gao, Jie Pan and Shaojie Shen, IEEE International Conference on Robotics and Automation (**ICRA**), 2020.
+- [**RAPTOR: Robust and Perception-aware Trajectory Replanning for Quadrotor Fast Flight**](https://arxiv.org/abs/2007.03465), Boyu Zhou, Jie Pan, Fei Gao and Shaojie Shen, IEEE Transactions on Robotics (**T-RO**)。
 
-- [__Robust and Efficient Quadrotor Trajectory Generation for Fast Autonomous Flight__](https://ieeexplore.ieee.org/document/8758904), Boyu Zhou, Fei Gao, Luqi Wang, Chuhao Liu and Shaojie Shen, IEEE Robotics and Automation Letters (**RA-L**), 2019.
-- [__Robust Real-time UAV Replanning Using Guided Gradient-based Optimization and Topological Paths__](https://arxiv.org/abs/1912.12644), Boyu Zhou, Fei Gao, Jie Pan and Shaojie Shen, IEEE International Conference on Robotics and Automation (__ICRA__), 2020.
-- [__RAPTOR: Robust and Perception-aware Trajectory Replanning for Quadrotor Fast Flight__](https://arxiv.org/abs/2007.03465), Boyu Zhou, Jie Pan, Fei Gao and Shaojie Shen, IEEE Transactions on Robotics (__T-RO__). 
+所有规划算法及其他关键模块（如建图）均在 **fast_planner** 文件夹中实现：
 
+- **plan_env**：在线建图算法，接收深度图像（或点云）及相机位姿（里程计）数据，使用光线投射更新概率体素图，并构建欧几里得签名距离场（ESDF）以供规划模块使用。
+- **path_searching**：前端路径搜索算法，包括动态可行路径搜索和拓扑路径搜索。
+- **bspline**：B 样条轨迹表示的实现。
+- **bspline_opt**：基于梯度的 B 样条轨迹优化。
+- **active_perception**：感知优化规划策略，使无人机主动观察并避免未知障碍物（即将发布）。
+- **plan_manage**：高层管理模块，用于调度建图和规划算法，并包含系统启动接口及配置文件。
 
-All planning algorithms along with other key modules, such as mapping, are implemented in __fast_planner__:
+## 3. 安装与配置
 
-- __plan_env__: The online mapping algorithms. It takes in depth image (or point cloud) and camera pose (odometry) pairs as input, do raycasting to update a probabilistic volumetric map, and build an Euclidean signed distance filed (ESDF) for the planning system. 
-- __path_searching__: Front-end path searching algorithms. 
-  Currently it includes a kinodynamic path searching that respects the dynamics of quadrotors.
-  It also contains a sampling-based topological path searching algorithm to generate multiple topologically distinctive paths that capture the structure of the 3D environments. 
-- __bspline__: A implementation of the B-spline-based trajectory representation.
-- __bspline_opt__: The gradient-based trajectory optimization using B-spline trajectory.
-- __active_perception__: Perception-aware planning strategy, which enable to quadrotor to actively observe and avoid unknown obstacles, to appear in the future.
-- __plan_manage__: High-level modules that schedule and call the mapping and planning algorithms. Interfaces for launching the whole system, as well as the configuration files are contained here.
+### 先决条件
 
-Besides the folder __fast_planner__, a lightweight __uav_simulator__ is used for testing.
+1. 软件已在 Ubuntu 18.04（ROS Melodic）和 20.04（ROS Noetic）上开发并测试。
+2. 使用 [**NLopt**](https://nlopt.readthedocs.io/en/latest/NLopt_Installation) 解决非线性优化问题，使用 **Armadillo** 提供线性代数支持。
 
-
-## 3. Setup and Config
-
-### Prerequisites
-
-1. Our software is developed and tested in Ubuntu 18.04(ROS Melodic) and 20.04(ROS Noetic). 
-   
-2. We use [**NLopt**](https://nlopt.readthedocs.io/en/latest/NLopt_Installation) to solve the non-linear optimization problem. The __uav_simulator__ depends on the C++ linear algebra library __Armadillo__. The two dependencies can be installed by the following command.
-
-Firstly, you should install __nlopt v2.7.1__:
-```
+首先，安装 **nlopt v2.7.1**：
+```bash
 git clone -b v2.7.1 https://github.com/stevengj/nlopt.git
 cd nlopt
 mkdir build
@@ -143,138 +116,59 @@ make
 sudo make install
 ```
 
-Next, you can run the following commands to install other required tools:
-```
+然后安装其他必要工具：
+```bash
 sudo apt-get install libarmadillo-dev
 ```
 
-### Build on ROS
+### 在 ROS 中构建
 
-After the prerequisites are satisfied, you can clone this repository to your catkin workspace and catkin_make. A new workspace is recommended:
-
-```
-  cd ${YOUR_WORKSPACE_PATH}/src
-  git clone https://github.com/HKUST-Aerial-Robotics/Fast-Planner.git
-  cd ../
-  catkin_make
-```
-
-If you encounter problems in this step, please first refer to existing __issues__, __pull requests__ and __Google__ before raising a new issue.
-
-Now you are ready to [run a simulation](#4-run-simulations).
-
-### Use GPU Depth Rendering (can be skipped optionally)
-
-This step is not mandatory for running the simulations. However, if you want to run the more realistic depth camera in __uav_simulator__, installation of [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) is needed. Otherwise, a less realistic depth sensor model will be used.
-
- The **local_sensing** package in __uav_simulator__ has the option of using GPU or CPU to render the depth sensor measurement. By default, it is set to CPU version in CMakeLists:
- 
- ```
- set(ENABLE_CUDA false)
- # set(ENABLE_CUDA true)
- ```
-However, we STRONGLY recommend the GPU version, because it generates depth images more like a real depth camera.
-To enable the GPU depth rendering, set ENABLE_CUDA to true, and also remember to change the 'arch' and 'code' flags according to your graphics card devices. You can check the right code [here](https://github.com/tpruvot/ccminer/wiki/Compatibility).
-
-```
-    set(CUDA_NVCC_FLAGS 
-      -gencode arch=compute_61,code=sm_61;
-    ) 
-``` 
-For installation of CUDA, please go to [CUDA ToolKit](https://developer.nvidia.com/cuda-toolkit)
-
-## 4. Run Simulations
-
-Run [Rviz](http://wiki.ros.org/rviz) with our configuration firstly:
-
-```
-  <!-- go to your workspace and run: -->
-  source devel/setup.bash
-  roslaunch plan_manage rviz.launch
+完成上述依赖安装后，将此仓库克隆到 catkin 工作空间并编译：
+```bash
+cd ${YOUR_WORKSPACE_PATH}/src
+git clone https://github.com/HKUST-Aerial-Robotics/Fast-Planner.git
+cd ../
+catkin_make
 ```
 
-Then run the quadrotor simulator and __Fast-Planner__. 
-Several examples are provided below:
+若遇到问题，请优先查看已有 **issues**、**pull requests** 和 **Google**，然后再提新的问题。
 
-### Kinodynamic Path Searching & B-spline Optimization
+## 4. 运行仿真
 
-In this method, a kinodynamic path searching finds a safe, dynamically feasible, and minimum-time initial trajectory in the discretized control space. 
-Then the smoothness and clearance of the trajectory are improved by a B-spline optimization.
-To test this method, run:
-
+首先运行带有配置的 [Rviz](http://wiki.ros.org/rviz)：
+```bash
+source devel/setup.bash
+roslaunch plan_manage rviz.launch
 ```
-  <!-- open a new terminal, go to your workspace and run: -->
-  source devel/setup.bash
-  roslaunch plan_manage kino_replan.launch
-```
+然后运行四旋翼模拟器和 **Fast-Planner**：
 
-Normally, you will find the randomly generated map and the drone model in ```Rviz```. At this time, you can trigger the planner using the ```2D Nav Goal``` tool. When a point is clicked in ```Rviz```, a new trajectory will be generated immediately and executed by the drone. A sample is displayed below:
+### 动态路径搜索与 B 样条优化
 
-<!-- add some gif here -->
- <p id="demo1" align="center">
-  <img src="files/ral19_3.gif" width = "480" height = "270"/>
- </p>
-
-Related algorithms are detailed in [this paper](https://ieeexplore.ieee.org/document/8758904).
-
-
-
-### Topological Path Searching & Path-guided Optimization
-
-This method features searching for multiple trajectories in distinctive topological classes. Thanks to the strategy, the solution space is explored more thoroughly, avoiding local minima and yielding better solutions.
-Similarly, run:
-
-```
-  <!-- open a new terminal, go to your workspace and run: -->
-  source devel/setup.bash
-  roslaunch plan_manage topo_replan.launch
+此方法使用动态路径搜索在离散化控制空间中找到安全、动态可行且最小时间的初始轨迹。然后通过 B 样条优化改善轨迹的平滑性和避障性能。
+运行以下命令：
+```bash
+source devel/setup.bash
+roslaunch plan_manage kino_replan.launch
 ```
 
-then you will find the random map generated and can use the ```2D Nav Goal``` to trigger the planner:
+在 ```Rviz``` 中，使用 ```2D Nav Goal``` 工具点击目标点，即可生成新的轨迹并由无人机执行。
 
-<!-- add some gif here -->
- <p align="center">
-  <img src="files/icra20_3.gif" width = "480" height = "270"/>
- </p>
+## 5. 在项目中使用
 
-Related algorithms are detailed in [this paper](https://arxiv.org/abs/1912.12644).
+若已成功运行仿真，可查看文件 `kino_replan.launch` 或 `topo_replan.launch` 来了解如何在您的项目中使用 **Fast-Planner**。
 
+## 6. 更新日志
 
-### Perception-aware Replanning
+- **2020年10月20日**：扩展并应用于快速自主探索。
+- **2020年7月5日**：即将发布关于 RAPTOR 的实现。
+- **2020年4月12日**：ICRA2020 论文相关实现已发布。
 
-The code will be released after the publication of [associated paper](https://arxiv.org/abs/2007.03465).
+## 致谢
+我们使用 **NLopt** 进行非线性优化。
 
+## 许可证
+源码基于 [GPLv3](http://www.gnu.org/licenses/) 许可证发布。
 
-## 5. Use in Your Application
+## 声明
+本项目为研究代码，提供时不附带任何形式的担保，包括适销性或特定用途的适用性担保。
 
-If you have successfully run the simulation and want to use __Fast-Planner__ in your project,
-please explore the files kino_replan.launch or topo_replan.launch.
-Important parameters that may be changed in your usage are contained and documented.
-
-Note that in our configuration, the size of depth image is 640x480. 
-For higher map fusion efficiency we do downsampling (in kino_algorithm.xml, skip_pixel = 2).
-If you use depth images with lower resolution (like 256x144), you might disable the downsampling by setting skip_pixel = 1. Also, the _depth_scaling_factor_ is set to 1000, which may need to be changed according to your device.
-
-Finally, for setup problem, like compilation error caused by different versions of ROS/Eigen, please first refer to existing __issues__, __pull request__, and __Google__ before raising a new issue. Insignificant issue will receive no reply.
-
-
-## 6. Updates
-
-- __Oct 20, 2020__: Fast-Planner is extended and applied to fast autonomous exploration. Check this [repo](https://github.com/HKUST-Aerial-Robotics/FUEL) for more details.
-  
-- __July 5, 2020__: We will release the implementation of paper: _RAPTOR: Robust and Perception-aware Trajectory Replanning for Quadrotor Fast Flight_ (submitted to TRO, under review) in the future.
-
-- __April 12, 2020__: The implementation of the ICRA2020 paper: _Robust Real-time UAV Replanning Using Guided Gradient-based Optimization and Topological Paths_ is available.
-
-- __Jan 30, 2020__: The volumetric mapping is integrated with our planner. It takes in depth image and camera pose pairs as input, do raycasting to fuse the measurements, and build a Euclidean signed distance field (ESDF) for the planning module.
-
-
-## Acknowledgements
-  We use **NLopt** for non-linear optimization.
-
-## Licence
-The source code is released under [GPLv3](http://www.gnu.org/licenses/) license.
-
-
-## Disclaimer
-This is research code, it is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of merchantability or fitness for a particular purpose.
