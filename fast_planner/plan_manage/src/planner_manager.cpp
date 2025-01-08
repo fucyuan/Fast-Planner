@@ -128,11 +128,13 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
                                            Eigen::Vector3d start_acc, Eigen::Vector3d end_pt,
                                            Eigen::Vector3d end_vel) {
 
+  // 输出重规划的开始标志
   std::cout << "[kino replan]: -----------------------" << std::endl;
   cout << "start: " << start_pt.transpose() << ", " << start_vel.transpose() << ", "
        << start_acc.transpose() << "\ngoal:" << end_pt.transpose() << ", " << end_vel.transpose()
        << endl;
 
+  // 如果起点和终点非常接近，直接返回失败，认为无需规划
   if ((start_pt - end_pt).norm() < 0.2) {
     cout << "Close goal" << endl;
     return false;
@@ -140,29 +142,35 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
 
   ros::Time t1, t2;
 
+  // 记录规划的开始时间
   local_data_.start_time_ = ros::Time::now();
-  double t_search = 0.0, t_opt = 0.0, t_adjust = 0.0;
+  double t_search = 0.0, t_opt = 0.0, t_adjust = 0.0;  // 搜索、优化和调整时间初始化为0
 
+  // 初始化起点位置、速度和加速度
   Eigen::Vector3d init_pos = start_pt;
   Eigen::Vector3d init_vel = start_vel;
   Eigen::Vector3d init_acc = start_acc;
 
-  // kinodynamic path searching
+  // -------------------
+  // 动态可行路径搜索
+  // -------------------
+  t1 = ros::Time::now();  // 记录搜索开始时间
 
-  t1 = ros::Time::now();
-
+  // 重置路径搜索器
   kino_path_finder_->reset();
 
+  // 调用路径搜索器进行路径搜索
   int status = kino_path_finder_->search(start_pt, start_vel, start_acc, end_pt, end_vel, true);
 
+  // 如果搜索失败，尝试用非连续初始状态重新搜索
   if (status == KinodynamicAstar::NO_PATH) {
     cout << "[kino replan]: kinodynamic search fail!" << endl;
 
-    // retry searching with discontinuous initial state
-    kino_path_finder_->reset();
+    kino_path_finder_->reset();  // 重置搜索器
     status = kino_path_finder_->search(start_pt, start_vel, start_acc, end_pt, end_vel, false);
 
     if (status == KinodynamicAstar::NO_PATH) {
+      // 如果仍然搜索失败，返回失败
       cout << "[kino replan]: Can't find path." << endl;
       return false;
     } else {
@@ -173,77 +181,81 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
     cout << "[kino replan]: kinodynamic search success." << endl;
   }
 
+  // 保存搜索得到的路径
   plan_data_.kino_path_ = kino_path_finder_->getKinoTraj(0.01);
 
-  t_search = (ros::Time::now() - t1).toSec();
+  t_search = (ros::Time::now() - t1).toSec();  // 计算搜索时间
 
-  // parameterize the path to bspline
-
-  double                  ts = pp_.ctrl_pt_dist / pp_.max_vel_;
+  // -------------------
+  // 将路径参数化为B样条
+  // -------------------
+  double                  ts = pp_.ctrl_pt_dist / pp_.max_vel_;  // 计算控制点间隔时间
   vector<Eigen::Vector3d> point_set, start_end_derivatives;
-  kino_path_finder_->getSamples(ts, point_set, start_end_derivatives);
+  kino_path_finder_->getSamples(ts, point_set, start_end_derivatives);  // 获取采样点和导数
 
   Eigen::MatrixXd ctrl_pts;
   NonUniformBspline::parameterizeToBspline(ts, point_set, start_end_derivatives, ctrl_pts);
-  NonUniformBspline init(ctrl_pts, 3, ts);
+  NonUniformBspline init(ctrl_pts, 3, ts);  // 初始化B样条
 
-  // bspline trajectory optimization
+  // -------------------
+  // B样条轨迹优化
+  // -------------------
+  t1 = ros::Time::now();  // 记录优化开始时间
 
-  t1 = ros::Time::now();
-
-  int cost_function = BsplineOptimizer::NORMAL_PHASE;
+  int cost_function = BsplineOptimizer::NORMAL_PHASE;  // 定义优化目标
 
   if (status != KinodynamicAstar::REACH_END) {
-    cost_function |= BsplineOptimizer::ENDPOINT;
+    cost_function |= BsplineOptimizer::ENDPOINT;  // 如果未到达终点，增加终点约束
   }
 
   ctrl_pts = bspline_optimizers_[0]->BsplineOptimizeTraj(ctrl_pts, ts, cost_function, 1, 1);
+  // 调用优化器对轨迹进行优化
 
-  t_opt = (ros::Time::now() - t1).toSec();
+  t_opt = (ros::Time::now() - t1).toSec();  // 计算优化时间
 
-  // iterative time adjustment
-
+  // -------------------
+  // 迭代时间调整
+  // -------------------
   t1                    = ros::Time::now();
-  NonUniformBspline pos = NonUniformBspline(ctrl_pts, 3, ts);
+  NonUniformBspline pos = NonUniformBspline(ctrl_pts, 3, ts);  // 生成B样条
 
-  double to = pos.getTimeSum();
-  pos.setPhysicalLimits(pp_.max_vel_, pp_.max_acc_);
-  bool feasible = pos.checkFeasibility(false);
+  double to = pos.getTimeSum();  // 获取原始轨迹时间
+  pos.setPhysicalLimits(pp_.max_vel_, pp_.max_acc_);  // 设置物理约束（速度和加速度限制）
+  bool feasible = pos.checkFeasibility(false);  // 检查轨迹的可行性
 
   int iter_num = 0;
-  while (!feasible && ros::ok()) {
+  while (!feasible && ros::ok()) {  // 如果轨迹不可行，调整时间分配
+    feasible = pos.reallocateTime();  // 调整时间
 
-    feasible = pos.reallocateTime();
-
-    if (++iter_num >= 3) break;
+    if (++iter_num >= 3) break;  // 最多调整3次
   }
 
-  // pos.checkFeasibility(true);
-  // cout << "[Main]: iter num: " << iter_num << endl;
-
-  double tn = pos.getTimeSum();
+  double tn = pos.getTimeSum();  // 获取调整后的轨迹时间
 
   cout << "[kino replan]: Reallocate ratio: " << tn / to << endl;
-  if (tn / to > 3.0) ROS_ERROR("reallocate error.");
+  if (tn / to > 3.0) ROS_ERROR("reallocate error.");  // 时间调整超过3倍，记录错误
 
-  t_adjust = (ros::Time::now() - t1).toSec();
+  t_adjust = (ros::Time::now() - t1).toSec();  // 计算调整时间
 
-  // save planned results
+  // -------------------
+  // 保存规划结果
+  // -------------------
+  local_data_.position_traj_ = pos;  // 保存最终轨迹
 
-  local_data_.position_traj_ = pos;
-
-  double t_total = t_search + t_opt + t_adjust;
+  double t_total = t_search + t_opt + t_adjust;  // 计算总耗时
   cout << "[kino replan]: time: " << t_total << ", search: " << t_search << ", optimize: " << t_opt
        << ", adjust time:" << t_adjust << endl;
 
+  // 更新规划时间数据
   pp_.time_search_   = t_search;
   pp_.time_optimize_ = t_opt;
   pp_.time_adjust_   = t_adjust;
 
-  updateTrajInfo();
+  updateTrajInfo();  // 更新轨迹信息
 
-  return true;
+  return true;  // 规划成功返回
 }
+
 
 // !SECTION
 
