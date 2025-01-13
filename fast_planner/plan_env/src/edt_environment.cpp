@@ -103,19 +103,25 @@ void EDTEnvironment::interpolateTrilinear(double values[2][2][2],
   grad[0] += diff[2] * diff[1] * (values[1][1][1] - values[0][1][1]);
   grad[0] *= resolution_inv_;
 }
-
 void EDTEnvironment::evaluateEDTWithGrad(const Eigen::Vector3d& pos,
                                          double time, double& dist,
-                                         Eigen::Vector3d& grad) {
-  Eigen::Vector3d diff;
-  Eigen::Vector3d sur_pts[2][2][2];
+                                         Eigen::Vector3d& grad) 
+                                         {
+  Eigen::Vector3d diff; // 存储位置 pos 相对于其所在栅格点的偏移量
+  Eigen::Vector3d sur_pts[2][2][2]; // 存储当前点 pos 周围 8 个网格点的坐标
+
+  // 获取 pos 周围的 8 个网格点坐标，并计算 pos 到这些点的偏移量 diff
   sdf_map_->getSurroundPts(pos, sur_pts, diff);
 
-  double dists[2][2][2];
+  double dists[2][2][2]; // 存储 8 个网格点对应的 SDF（Signed Distance Field）值
+
+  // 获取 8 个网格点的 SDF 值
   getSurroundDistance(sur_pts, dists);
 
+  // 对 8 个 SDF 值进行三线性插值，计算 pos 的 SDF 值 dist 和梯度 grad
   interpolateTrilinear(dists, diff, dist, grad);
 }
+
 
 double EDTEnvironment::evaluateCoarseEDT(Eigen::Vector3d& pos, double time) {
   double d1 = sdf_map_->getDistance(pos);

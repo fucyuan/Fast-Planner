@@ -113,21 +113,21 @@ void BsplineOptimizer::setWaypoints(const vector<Eigen::Vector3d>& waypts,
 Eigen::MatrixXd BsplineOptimizer::BsplineOptimizeTraj(const Eigen::MatrixXd& points, const double& ts,
                                                       const int& cost_function, int max_num_id,
                                                       int max_time_id) {
-  setControlPoints(points);
-  setBsplineInterval(ts);
-  setCostFunction(cost_function);
-  setTerminateCond(max_num_id, max_time_id);
+  setControlPoints(points);  // 设置控制点
+  setBsplineInterval(ts);  // 设置B样条的时间间隔
+  setCostFunction(cost_function);  // 设置代价函数类型
+  setTerminateCond(max_num_id, max_time_id);  // 设置终止条件
 
-  optimize();
-  return this->control_points_;
+  optimize();  // 执行优化
+  return this->control_points_;  // 返回优化后的控制点
 }
 
 void BsplineOptimizer::optimize() {
-  /* initialize solver */
-  iter_num_        = 0;
-  min_cost_        = std::numeric_limits<double>::max();
-  const int pt_num = control_points_.rows();
-  g_q_.resize(pt_num);
+  /* 初始化优化器 */
+  iter_num_        = 0;  // 迭代次数初始化为0
+  min_cost_        = std::numeric_limits<double>::max();  // 最小代价值初始化为正无穷
+  const int pt_num = control_points_.rows();  // 控制点的数量
+  g_q_.resize(pt_num);  // 初始化梯度存储
   g_smoothness_.resize(pt_num);
   g_distance_.resize(pt_num);
   g_feasibility_.resize(pt_num);
@@ -135,40 +135,40 @@ void BsplineOptimizer::optimize() {
   g_waypoints_.resize(pt_num);
   g_guide_.resize(pt_num);
 
-  if (cost_function_ & ENDPOINT) {
-    variable_num_ = dim_ * (pt_num - order_);
-    // end position used for hard constraint
+  if (cost_function_ & ENDPOINT) {  // 如果包含终点代价
+    variable_num_ = dim_ * (pt_num - order_);  // 变量数量计算
+    // 终点位置用于硬约束
     end_pt_ = (1 / 6.0) *
         (control_points_.row(pt_num - 3) + 4 * control_points_.row(pt_num - 2) +
          control_points_.row(pt_num - 1));
   } else {
-    variable_num_ = max(0, dim_ * (pt_num - 2 * order_)) ;
+    variable_num_ = max(0, dim_ * (pt_num - 2 * order_));  // 变量数量计算
   }
 
-  /* do optimization using NLopt slover */
-  nlopt::opt opt(nlopt::algorithm(isQuadratic() ? algorithm1_ : algorithm2_), variable_num_);
-  opt.set_min_objective(BsplineOptimizer::costFunction, this);
-  opt.set_maxeval(max_iteration_num_[max_num_id_]);
-  opt.set_maxtime(max_iteration_time_[max_time_id_]);
-  opt.set_xtol_rel(1e-5);
+  /* 使用NLopt优化器进行优化 */
+  nlopt::opt opt(nlopt::algorithm(isQuadratic() ? algorithm1_ : algorithm2_), variable_num_);  // 选择优化算法
+  opt.set_min_objective(BsplineOptimizer::costFunction, this);  // 设置目标函数
+  opt.set_maxeval(max_iteration_num_[max_num_id_]);  // 设置最大迭代次数
+  opt.set_maxtime(max_iteration_time_[max_time_id_]);  // 设置最大优化时间
+  opt.set_xtol_rel(1e-5);  // 设置相对误差容限
 
-  vector<double> q(variable_num_);
+  vector<double> q(variable_num_);  // 初始化优化变量
   for (int i = order_; i < pt_num; ++i) {
-    if (!(cost_function_ & ENDPOINT) && i >= pt_num - order_) continue;
+    if (!(cost_function_ & ENDPOINT) && i >= pt_num - order_) continue;  // 跳过未使用的变量
     for (int j = 0; j < dim_; j++) {
-      q[dim_ * (i - order_) + j] = control_points_(i, j);
+      q[dim_ * (i - order_) + j] = control_points_(i, j);  // 初始化优化变量
     }
   }
 
-  if (dim_ != 1) {
-    vector<double> lb(variable_num_), ub(variable_num_);
-    const double   bound = 10.0;
+  if (dim_ != 1) {  // 如果不是1维情况
+    vector<double> lb(variable_num_), ub(variable_num_);  // 定义上下界
+    const double   bound = 10.0;  // 设置边界值
     for (int i = 0; i < variable_num_; ++i) {
-      lb[i] = q[i] - bound;
-      ub[i] = q[i] + bound;
+      lb[i] = q[i] - bound;  // 设置下界
+      ub[i] = q[i] + bound;  // 设置上界
     }
-    opt.set_lower_bounds(lb);
-    opt.set_upper_bounds(ub);
+    opt.set_lower_bounds(lb);  // 应用下界
+    opt.set_upper_bounds(ub);  // 应用上界
   }
 
   try {
@@ -177,116 +177,139 @@ void BsplineOptimizer::optimize() {
     // vec_cost_.clear();
     // time_start_ = ros::Time::now();
 
-    double        final_cost;
-    nlopt::result result = opt.optimize(q, final_cost);
+    double        final_cost;  // 最终代价
+    nlopt::result result = opt.optimize(q, final_cost);  // 执行优化
 
-    /* retrieve the optimization result */
+    /* 检索优化结果 */
     // cout << "Min cost:" << min_cost_ << endl;
   } catch (std::exception& e) {
-    ROS_WARN("[Optimization]: nlopt exception");
-    cout << e.what() << endl;
+    ROS_WARN("[Optimization]: nlopt exception");  // 捕获异常
+    cout << e.what() << endl;  // 打印异常信息
   }
 
   for (int i = order_; i < control_points_.rows(); ++i) {
-    if (!(cost_function_ & ENDPOINT) && i >= pt_num - order_) continue;
+    if (!(cost_function_ & ENDPOINT) && i >= pt_num - order_) continue;  // 跳过未使用的变量
     for (int j = 0; j < dim_; j++) {
-      control_points_(i, j) = best_variable_[dim_ * (i - order_) + j];
+      control_points_(i, j) = best_variable_[dim_ * (i - order_) + j];  // 更新控制点
     }
   }
 
-  if (!(cost_function_ & GUIDE)) ROS_INFO_STREAM("iter num: " << iter_num_);
+  if (!(cost_function_ & GUIDE)) ROS_INFO_STREAM("iter num: " << iter_num_);  // 输出迭代次数（如果不包含GUIDE约束）
 }
 
 void BsplineOptimizer::calcSmoothnessCost(const vector<Eigen::Vector3d>& q, double& cost,
                                           vector<Eigen::Vector3d>& gradient) {
+  // 初始化平滑代价为0
   cost = 0.0;
+
+  // 定义一个零向量用于初始化梯度
   Eigen::Vector3d zero(0, 0, 0);
+
+  // 将梯度初始化为零向量
   std::fill(gradient.begin(), gradient.end(), zero);
+
+  // 定义jerk（抖动）和临时变量temp_j，用于计算梯度
   Eigen::Vector3d jerk, temp_j;
 
-  for (int i = 0; i < q.size() - order_; i++) {
-    /* evaluate jerk */
-    jerk = q[i + 3] - 3 * q[i + 2] + 3 * q[i + 1] - q[i];
-    cost += jerk.squaredNorm();
+  // 遍历所有的点，计算jerk和对应的平滑代价与梯度
+  for (int i = 0; i < q.size() - order_; i++) { // 遍历所有适合的段
+    /* 计算jerk值 */
+    jerk = q[i + 3] - 3 * q[i + 2] + 3 * q[i + 1] - q[i]; // jerk公式
+    cost += jerk.squaredNorm(); // jerk平方和作为代价的一部分
+
+    // 计算梯度临时变量
     temp_j = 2.0 * jerk;
-    /* jerk gradient */
-    gradient[i + 0] += -temp_j;
-    gradient[i + 1] += 3.0 * temp_j;
-    gradient[i + 2] += -3.0 * temp_j;
-    gradient[i + 3] += temp_j;
+
+    /* 计算jerk的梯度，逐点累加到相应控制点的梯度上 */
+    gradient[i + 0] += -temp_j;          // 第i个控制点的梯度
+    gradient[i + 1] += 3.0 * temp_j;     // 第i+1个控制点的梯度
+    gradient[i + 2] += -3.0 * temp_j;    // 第i+2个控制点的梯度
+    gradient[i + 3] += temp_j;           // 第i+3个控制点的梯度
   }
 }
 
+
 void BsplineOptimizer::calcDistanceCost(const vector<Eigen::Vector3d>& q, double& cost,
                                         vector<Eigen::Vector3d>& gradient) {
-  cost = 0.0;
-  Eigen::Vector3d zero(0, 0, 0);
-  std::fill(gradient.begin(), gradient.end(), zero);
+  cost = 0.0; // 初始化代价为0
+  Eigen::Vector3d zero(0, 0, 0); // 初始化梯度为零向量
+  std::fill(gradient.begin(), gradient.end(), zero); // 将所有梯度初始化为零向量
 
-  double          dist;
-  Eigen::Vector3d dist_grad, g_zero(0, 0, 0);
+  double          dist; // 保存当前点到障碍物的距离
+  Eigen::Vector3d dist_grad, g_zero(0, 0, 0); // 保存当前点到障碍物距离的梯度向量
 
+  // 计算的终止索引。如果启用 ENDPOINT，则处理到末尾，否则只处理到倒数第 order_ 个点
   int end_idx = (cost_function_ & ENDPOINT) ? q.size() : q.size() - order_;
 
+  // 遍历轨迹控制点，跳过前 order_ 个点
   for (int i = order_; i < end_idx; i++) {
+    // 通过距离场（EDT）计算当前点到障碍物的距离和梯度
     edt_environment_->evaluateEDTWithGrad(q[i], -1.0, dist, dist_grad);
+
+    // 如果梯度的模长足够大，则对其进行归一化
     if (dist_grad.norm() > 1e-4) dist_grad.normalize();
 
+    // 如果距离小于阈值 dist0_，即点太靠近障碍物，则计算距离代价和梯度
     if (dist < dist0_) {
+      // 增加代价：距离小于阈值的平方差
       cost += pow(dist - dist0_, 2);
+
+      // 增加梯度：2 * (dist - dist0_) * 距离梯度
       gradient[i] += 2.0 * (dist - dist0_) * dist_grad;
     }
   }
 }
 
+
 void BsplineOptimizer::calcFeasibilityCost(const vector<Eigen::Vector3d>& q, double& cost,
                                            vector<Eigen::Vector3d>& gradient) {
-  cost = 0.0;
-  Eigen::Vector3d zero(0, 0, 0);
-  std::fill(gradient.begin(), gradient.end(), zero);
+  cost = 0.0; // 初始化总的可行性代价
+  Eigen::Vector3d zero(0, 0, 0); // 零向量，用于初始化梯度
+  std::fill(gradient.begin(), gradient.end(), zero); // 将梯度向量初始化为零
 
   /* abbreviation */
   double ts, vm2, am2, ts_inv2, ts_inv4;
-  vm2 = max_vel_ * max_vel_;
-  am2 = max_acc_ * max_acc_;
+  vm2 = max_vel_ * max_vel_; // 最大速度的平方
+  am2 = max_acc_ * max_acc_; // 最大加速度的平方
 
-  ts      = bspline_interval_;
-  ts_inv2 = 1 / ts / ts;
-  ts_inv4 = ts_inv2 * ts_inv2;
+  ts      = bspline_interval_; // B样条的时间间隔
+  ts_inv2 = 1 / ts / ts; // 时间间隔平方的倒数
+  ts_inv4 = ts_inv2 * ts_inv2; // 时间间隔四次方的倒数
 
   /* velocity feasibility */
-  for (int i = 0; i < q.size() - 1; i++) {
-    Eigen::Vector3d vi = q[i + 1] - q[i];
+  for (int i = 0; i < q.size() - 1; i++) { // 遍历控制点，计算速度约束代价
+    Eigen::Vector3d vi = q[i + 1] - q[i]; // 控制点之间的速度向量
 
-    for (int j = 0; j < 3; j++) {
-      double vd = vi(j) * vi(j) * ts_inv2 - vm2;
-      if (vd > 0.0) {
-        cost += pow(vd, 2);
+    for (int j = 0; j < 3; j++) { // 遍历速度向量的每个分量
+      double vd = vi(j) * vi(j) * ts_inv2 - vm2; // 当前速度分量的平方与最大速度平方的差值
+      if (vd > 0.0) { // 如果当前速度超过了限制
+        cost += pow(vd, 2); // 累加速度约束的代价
 
-        double temp_v = 4.0 * vd * ts_inv2;
-        gradient[i + 0](j) += -temp_v * vi(j);
-        gradient[i + 1](j) += temp_v * vi(j);
+        double temp_v = 4.0 * vd * ts_inv2; // 速度代价对控制点梯度的缩放因子
+        gradient[i + 0](j) += -temp_v * vi(j); // 更新前一个控制点的梯度
+        gradient[i + 1](j) += temp_v * vi(j); // 更新后一个控制点的梯度
       }
     }
   }
 
   /* acceleration feasibility */
-  for (int i = 0; i < q.size() - 2; i++) {
-    Eigen::Vector3d ai = q[i + 2] - 2 * q[i + 1] + q[i];
+  for (int i = 0; i < q.size() - 2; i++) { // 遍历控制点，计算加速度约束代价
+    Eigen::Vector3d ai = q[i + 2] - 2 * q[i + 1] + q[i]; // 控制点之间的加速度向量
 
-    for (int j = 0; j < 3; j++) {
-      double ad = ai(j) * ai(j) * ts_inv4 - am2;
-      if (ad > 0.0) {
-        cost += pow(ad, 2);
+    for (int j = 0; j < 3; j++) { // 遍历加速度向量的每个分量
+      double ad = ai(j) * ai(j) * ts_inv4 - am2; // 当前加速度分量的平方与最大加速度平方的差值
+      if (ad > 0.0) { // 如果当前加速度超过了限制
+        cost += pow(ad, 2); // 累加加速度约束的代价
 
-        double temp_a = 4.0 * ad * ts_inv4;
-        gradient[i + 0](j) += temp_a * ai(j);
-        gradient[i + 1](j) += -2 * temp_a * ai(j);
-        gradient[i + 2](j) += temp_a * ai(j);
+        double temp_a = 4.0 * ad * ts_inv4; // 加速度代价对控制点梯度的缩放因子
+        gradient[i + 0](j) += temp_a * ai(j); // 更新第一个控制点的梯度
+        gradient[i + 1](j) += -2 * temp_a * ai(j); // 更新第二个控制点的梯度
+        gradient[i + 2](j) += temp_a * ai(j); // 更新第三个控制点的梯度
       }
     }
   }
 }
+
 
 void BsplineOptimizer::calcEndpointCost(const vector<Eigen::Vector3d>& q, double& cost,
                                         vector<Eigen::Vector3d>& gradient) {
@@ -354,86 +377,86 @@ void BsplineOptimizer::calcGuideCost(const vector<Eigen::Vector3d>& q, double& c
 
 void BsplineOptimizer::combineCost(const std::vector<double>& x, std::vector<double>& grad,
                                    double& f_combine) {
-  /* convert the NLopt format vector to control points. */
+  /* 将NLopt格式的向量转换为控制点 */
 
-  // This solver can support 1D-3D B-spline optimization, but we use Vector3d to store each control point
-  // For 1D case, the second and third elements are zero, and similar for the 2D case.
+  // 此优化器支持1D到3D的B样条优化，但我们使用Vector3d来存储每个控制点。
+  // 对于1D的情况，第二和第三个元素为零，对于2D的情况类似。
   for (int i = 0; i < order_; i++) {
     for (int j = 0; j < dim_; ++j) {
-      g_q_[i][j] = control_points_(i, j);
+      g_q_[i][j] = control_points_(i, j);  // 初始化前order_个控制点
     }
     for (int j = dim_; j < 3; ++j) {
-      g_q_[i][j] = 0.0;
+      g_q_[i][j] = 0.0;  // 将未使用的维度置为0
     }
   }
 
   for (int i = 0; i < variable_num_ / dim_; i++) {
     for (int j = 0; j < dim_; ++j) {
-      g_q_[i + order_][j] = x[dim_ * i + j];
+      g_q_[i + order_][j] = x[dim_ * i + j];  // 将变量转换为控制点
     }
     for (int j = dim_; j < 3; ++j) {
-      g_q_[i + order_][j] = 0.0;
+      g_q_[i + order_][j] = 0.0;  // 多余维度置为0
     }
   }
 
-  if (!(cost_function_ & ENDPOINT)) {
+  if (!(cost_function_ & ENDPOINT)) {  // 如果未启用终点约束
     for (int i = 0; i < order_; i++) {
-
       for (int j = 0; j < dim_; ++j) {
         g_q_[order_ + variable_num_ / dim_ + i][j] =
-            control_points_(control_points_.rows() - order_ + i, j);
+            control_points_(control_points_.rows() - order_ + i, j);  // 初始化后order_个控制点
       }
       for (int j = dim_; j < 3; ++j) {
-        g_q_[order_ + variable_num_ / dim_ + i][j] = 0.0;
+        g_q_[order_ + variable_num_ / dim_ + i][j] = 0.0;  // 多余维度置为0
       }
     }
   }
 
-  f_combine = 0.0;
-  grad.resize(variable_num_);
-  fill(grad.begin(), grad.end(), 0.0);
+  f_combine = 0.0;  // 初始化组合代价
+  grad.resize(variable_num_);  // 调整梯度向量大小
+  fill(grad.begin(), grad.end(), 0.0);  // 将梯度向量初始化为0
 
-  /*  evaluate costs and their gradient  */
+  /* 计算代价及其梯度 */
   double f_smoothness, f_distance, f_feasibility, f_endpoint, f_guide, f_waypoints;
   f_smoothness = f_distance = f_feasibility = f_endpoint = f_guide = f_waypoints = 0.0;
 
-  if (cost_function_ & SMOOTHNESS) {
-    calcSmoothnessCost(g_q_, f_smoothness, g_smoothness_);
-    f_combine += lambda1_ * f_smoothness;
+  if (cost_function_ & SMOOTHNESS) {  // 如果启用了平滑度代价
+    calcSmoothnessCost(g_q_, f_smoothness, g_smoothness_);  // 计算平滑度代价
+    f_combine += lambda1_ * f_smoothness;  // 加入总代价
     for (int i = 0; i < variable_num_ / dim_; i++)
-      for (int j = 0; j < dim_; j++) grad[dim_ * i + j] += lambda1_ * g_smoothness_[i + order_](j);
+      for (int j = 0; j < dim_; j++) grad[dim_ * i + j] += lambda1_ * g_smoothness_[i + order_](j);  // 累加梯度
   }
-  if (cost_function_ & DISTANCE) {
-    calcDistanceCost(g_q_, f_distance, g_distance_);
-    f_combine += lambda2_ * f_distance;
+  if (cost_function_ & DISTANCE) {  // 如果启用了距离代价
+    calcDistanceCost(g_q_, f_distance, g_distance_);  // 计算距离代价
+    f_combine += lambda2_ * f_distance;  // 加入总代价
     for (int i = 0; i < variable_num_ / dim_; i++)
-      for (int j = 0; j < dim_; j++) grad[dim_ * i + j] += lambda2_ * g_distance_[i + order_](j);
+      for (int j = 0; j < dim_; j++) grad[dim_ * i + j] += lambda2_ * g_distance_[i + order_](j);  // 累加梯度
   }
-  if (cost_function_ & FEASIBILITY) {
-    calcFeasibilityCost(g_q_, f_feasibility, g_feasibility_);
-    f_combine += lambda3_ * f_feasibility;
+  if (cost_function_ & FEASIBILITY) {  // 如果启用了可行性代价
+    calcFeasibilityCost(g_q_, f_feasibility, g_feasibility_);  // 计算可行性代价
+    f_combine += lambda3_ * f_feasibility;  // 加入总代价
     for (int i = 0; i < variable_num_ / dim_; i++)
-      for (int j = 0; j < dim_; j++) grad[dim_ * i + j] += lambda3_ * g_feasibility_[i + order_](j);
+      for (int j = 0; j < dim_; j++) grad[dim_ * i + j] += lambda3_ * g_feasibility_[i + order_](j);  // 累加梯度
   }
-  if (cost_function_ & ENDPOINT) {
-    calcEndpointCost(g_q_, f_endpoint, g_endpoint_);
-    f_combine += lambda4_ * f_endpoint;
+  if (cost_function_ & ENDPOINT) {  // 如果启用了终点代价
+    calcEndpointCost(g_q_, f_endpoint, g_endpoint_);  // 计算终点代价
+    f_combine += lambda4_ * f_endpoint;  // 加入总代价
     for (int i = 0; i < variable_num_ / dim_; i++)
-      for (int j = 0; j < dim_; j++) grad[dim_ * i + j] += lambda4_ * g_endpoint_[i + order_](j);
+      for (int j = 0; j < dim_; j++) grad[dim_ * i + j] += lambda4_ * g_endpoint_[i + order_](j);  // 累加梯度
   }
-  if (cost_function_ & GUIDE) {
-    calcGuideCost(g_q_, f_guide, g_guide_);
-    f_combine += lambda5_ * f_guide;
+  if (cost_function_ & GUIDE) {  // 如果启用了引导代价
+    calcGuideCost(g_q_, f_guide, g_guide_);  // 计算引导代价
+    f_combine += lambda5_ * f_guide;  // 加入总代价
     for (int i = 0; i < variable_num_ / dim_; i++)
-      for (int j = 0; j < dim_; j++) grad[dim_ * i + j] += lambda5_ * g_guide_[i + order_](j);
+      for (int j = 0; j < dim_; j++) grad[dim_ * i + j] += lambda5_ * g_guide_[i + order_](j);  // 累加梯度
   }
-  if (cost_function_ & WAYPOINTS) {
-    calcWaypointsCost(g_q_, f_waypoints, g_waypoints_);
-    f_combine += lambda7_ * f_waypoints;
+  if (cost_function_ & WAYPOINTS) {  // 如果启用了航点代价
+    calcWaypointsCost(g_q_, f_waypoints, g_waypoints_);  // 计算航点代价
+    f_combine += lambda7_ * f_waypoints;  // 加入总代价
     for (int i = 0; i < variable_num_ / dim_; i++)
-      for (int j = 0; j < dim_; j++) grad[dim_ * i + j] += lambda7_ * g_waypoints_[i + order_](j);
+      for (int j = 0; j < dim_; j++) grad[dim_ * i + j] += lambda7_ * g_waypoints_[i + order_](j);  // 累加梯度
   }
-  /*  print cost  */
+
+  /* 打印代价（可选部分） */
   // if ((cost_function_ & WAYPOINTS) && iter_num_ % 10 == 0) {
   //   cout << iter_num_ << ", total: " << f_combine << ", acc: " << lambda8_ * f_view
   //        << ", waypt: " << lambda7_ * f_waypoints << endl;

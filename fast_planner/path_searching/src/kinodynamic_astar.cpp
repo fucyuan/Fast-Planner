@@ -638,159 +638,166 @@ void KinodynamicAstar::reset()
 
 std::vector<Eigen::Vector3d> KinodynamicAstar::getKinoTraj(double delta_t)
 {
+  // 定义存储轨迹点的列表
   vector<Vector3d> state_list;
 
-  /* ---------- get traj of searching ---------- */
-  PathNodePtr node = path_nodes_.back();
-  Matrix<double, 6, 1> x0, xt;
+  /* ---------- 获取搜索路径的轨迹 ---------- */
+  PathNodePtr node = path_nodes_.back(); // 从路径节点列表的末尾开始回溯（即目标点）
+  Matrix<double, 6, 1> x0, xt;           // 定义状态向量 x0（初始状态）和 xt（当前状态）
 
-  while (node->parent != NULL)
+  while (node->parent != NULL) // 回溯路径，直到起点
   {
-    Vector3d ut = node->input;
-    double duration = node->duration;
-    x0 = node->parent->state;
+    Vector3d ut = node->input;      // 获取当前节点的控制输入（加速度或其他输入）
+    double duration = node->duration; // 获取当前节点到父节点的时间步长
+    x0 = node->parent->state;       // 获取父节点的状态作为初始状态
 
-    for (double t = duration; t >= -1e-5; t -= delta_t)
+    for (double t = duration; t >= -1e-5; t -= delta_t) // 按时间间隔 delta_t 从后向前进行积分
     {
-      stateTransit(x0, xt, ut, t);
-      state_list.push_back(xt.head(3));
+      stateTransit(x0, xt, ut, t); // 通过前向积分计算时间 t 时的状态 xt
+      state_list.push_back(xt.head(3)); // 保存状态中的位置（3D 坐标）
     }
-    node = node->parent;
+    node = node->parent; // 移动到父节点，继续回溯路径
   }
-  reverse(state_list.begin(), state_list.end());
-  /* ---------- get traj of one shot ---------- */
-  if (is_shot_succ_)
-  {
-    Vector3d coord;
-    VectorXd poly1d, time(4);
 
-    for (double t = delta_t; t <= t_shot_; t += delta_t)
+  reverse(state_list.begin(), state_list.end()); // 反转轨迹列表，使轨迹从起点到终点
+
+  /* ---------- 获取 one-shot 部分的轨迹 ---------- */
+  if (is_shot_succ_) // 如果 one-shot 部分（直达目标的轨迹）成功
+  {
+    Vector3d coord;   // 存储当前时刻的 3D 坐标
+    VectorXd poly1d;  // 存储一维多项式系数
+    VectorXd time(4); // 定义时间的幂次项
+
+    for (double t = delta_t; t <= t_shot_; t += delta_t) // 按时间间隔 delta_t 遍历 one-shot 时间段
     {
       for (int j = 0; j < 4; j++)
-        time(j) = pow(t, j);
+        time(j) = pow(t, j); // 计算时间的幂次项（1, t, t^2, t^3）
 
-      for (int dim = 0; dim < 3; dim++)
+      for (int dim = 0; dim < 3; dim++) // 遍历 x、y、z 三个维度
       {
-        poly1d = coef_shot_.row(dim);
-        coord(dim) = poly1d.dot(time);
+        poly1d = coef_shot_.row(dim);     // 获取对应维度的多项式系数
+        coord(dim) = poly1d.dot(time);    // 通过多项式计算当前时刻的坐标
       }
-      state_list.push_back(coord);
+      state_list.push_back(coord); // 保存计算的 3D 坐标
     }
   }
 
-  return state_list;
+  return state_list; // 返回轨迹点列表
 }
+
 
 void KinodynamicAstar::getSamples(double& ts, vector<Eigen::Vector3d>& point_set,
                                   vector<Eigen::Vector3d>& start_end_derivatives)
 {
-  /* ---------- path duration ---------- */
-  double T_sum = 0.0;
-  if (is_shot_succ_)
-    T_sum += t_shot_;
-  PathNodePtr node = path_nodes_.back();
-  while (node->parent != NULL)
+  /* ---------- 路径总持续时间 ---------- */
+  double T_sum = 0.0; // 初始化总路径时间
+  if (is_shot_succ_)   // 如果存在 one-shot 轨迹
+    T_sum += t_shot_;  // 将 one-shot 轨迹的时间加入总时间
+
+  // 计算搜索路径的总时间
+  PathNodePtr node = path_nodes_.back(); // 从路径的最后一个节点开始回溯
+  while (node->parent != NULL) // 回溯路径，累加每一段的持续时间
   {
-    T_sum += node->duration;
-    node = node->parent;
+    T_sum += node->duration;  // 累加当前节点到父节点的时间
+    node = node->parent;      // 移动到父节点
   }
   // cout << "duration:" << T_sum << endl;
 
-  // Calculate boundary vel and acc
-  Eigen::Vector3d end_vel, end_acc;
-  double t;
-  if (is_shot_succ_)
+  /* ---------- 计算路径边界条件 ---------- */
+  Eigen::Vector3d end_vel, end_acc; // 定义终点速度和加速度
+  double t;                         // 当前时间
+  if (is_shot_succ_) // 如果存在 one-shot 轨迹
   {
-    t = t_shot_;
-    end_vel = end_vel_;
-    for (int dim = 0; dim < 3; ++dim)
+    t = t_shot_;         // 初始化时间为 one-shot 的时间
+    end_vel = end_vel_;  // 终点速度即为目标速度
+    for (int dim = 0; dim < 3; ++dim) // 计算终点加速度
     {
-      Vector4d coe = coef_shot_.row(dim);
-      end_acc(dim) = 2 * coe(2) + 6 * coe(3) * t_shot_;
+      Vector4d coe = coef_shot_.row(dim);              // 获取对应维度的多项式系数
+      end_acc(dim) = 2 * coe(2) + 6 * coe(3) * t_shot_; // 加速度公式：2 * a2 + 6 * a3 * t
     }
   }
-  else
+  else // 如果没有 one-shot 轨迹
   {
-    t = path_nodes_.back()->duration;
-    end_vel = node->state.tail(3);
-    end_acc = path_nodes_.back()->input;
+    t = path_nodes_.back()->duration; // 终点时间为路径最后一段的持续时间
+    end_vel = node->state.tail(3);    // 终点速度为最后节点的速度
+    end_acc = path_nodes_.back()->input; // 终点加速度为最后节点的输入
   }
 
-  // Get point samples
-  int seg_num = floor(T_sum / ts);
-  seg_num = max(8, seg_num);
-  ts = T_sum / double(seg_num);
-  bool sample_shot_traj = is_shot_succ_;
-  node = path_nodes_.back();
+  /* ---------- 获取轨迹采样点 ---------- */
+  int seg_num = floor(T_sum / ts);      // 根据时间间隔计算采样段数
+  seg_num = max(8, seg_num);            // 最小采样段数为 8
+  ts = T_sum / double(seg_num);         // 更新时间间隔
+  bool sample_shot_traj = is_shot_succ_; // 标志是否采样 one-shot 轨迹
+  node = path_nodes_.back();            // 从路径的最后一个节点开始
 
-  for (double ti = T_sum; ti > -1e-5; ti -= ts)
+  for (double ti = T_sum; ti > -1e-5; ti -= ts) // 从总时间开始，按照时间间隔采样
   {
-    if (sample_shot_traj)
+    if (sample_shot_traj) // 如果采样的是 one-shot 轨迹
     {
-      // samples on shot traj
-      Vector3d coord;
-      Vector4d poly1d, time;
+      // 采样 one-shot 轨迹
+      Vector3d coord;     // 当前采样点坐标
+      Vector4d poly1d, time; // 一维多项式系数和时间幂次项
 
       for (int j = 0; j < 4; j++)
-        time(j) = pow(t, j);
+        time(j) = pow(t, j); // 计算时间的幂次项（1, t, t^2, t^3）
 
-      for (int dim = 0; dim < 3; dim++)
+      for (int dim = 0; dim < 3; dim++) // 遍历 x, y, z 三个维度
       {
-        poly1d = coef_shot_.row(dim);
-        coord(dim) = poly1d.dot(time);
+        poly1d = coef_shot_.row(dim);  // 获取多项式系数
+        coord(dim) = poly1d.dot(time); // 计算当前时刻的坐标
       }
 
-      point_set.push_back(coord);
-      t -= ts;
+      point_set.push_back(coord); // 将采样点加入轨迹点集合
+      t -= ts;                    // 时间减少一个间隔
 
-      /* end of segment */
+      /* 如果 one-shot 部分采样完成，切换到搜索路径采样 */
       if (t < -1e-5)
       {
-        sample_shot_traj = false;
-        if (node->parent != NULL)
-          t += node->duration;
+        sample_shot_traj = false;    // 标志切换到搜索路径采样
+        if (node->parent != NULL)    // 如果当前节点有父节点
+          t += node->duration;       // 时间调整为搜索路径的持续时间
       }
     }
-    else
+    else // 如果采样的是搜索路径
     {
-      // samples on searched traj
-      Eigen::Matrix<double, 6, 1> x0 = node->parent->state;
-      Eigen::Matrix<double, 6, 1> xt;
-      Vector3d ut = node->input;
+      // 采样搜索路径
+      Eigen::Matrix<double, 6, 1> x0 = node->parent->state; // 获取父节点的状态
+      Eigen::Matrix<double, 6, 1> xt;                      // 当前状态
+      Vector3d ut = node->input;                           // 当前节点的输入
 
-      stateTransit(x0, xt, ut, t);
+      stateTransit(x0, xt, ut, t); // 前向积分，计算当前时刻的状态
 
-      point_set.push_back(xt.head(3));
-      t -= ts;
+      point_set.push_back(xt.head(3)); // 保存位置信息
+      t -= ts;                         // 时间减少一个间隔
 
-      // cout << "t: " << t << ", t acc: " << T_accumulate << endl;
+      /* 如果搜索路径段采样完成，切换到上一段路径 */
       if (t < -1e-5 && node->parent->parent != NULL)
       {
-        node = node->parent;
-        t += node->duration;
+        node = node->parent;         // 切换到父节点
+        t += node->duration;         // 时间调整为上一段路径的持续时间
       }
     }
   }
-  reverse(point_set.begin(), point_set.end());
+  reverse(point_set.begin(), point_set.end()); // 反转采样点集合，使轨迹从起点到终点
 
-  // calculate start acc
-  Eigen::Vector3d start_acc;
-  if (path_nodes_.back()->parent == NULL)
+  /* ---------- 计算起点和终点的导数信息（速度和加速度） ---------- */
+  Eigen::Vector3d start_acc; // 定义起点加速度
+  if (path_nodes_.back()->parent == NULL) // 如果没有搜索路径，只有 one-shot 轨迹
   {
-    // no searched traj, calculate by shot traj
-    start_acc = 2 * coef_shot_.col(2);
+    start_acc = 2 * coef_shot_.col(2); // 通过 one-shot 轨迹的二次系数计算加速度
   }
-  else
+  else // 如果有搜索路径
   {
-    // input of searched traj
-    start_acc = node->input;
+    start_acc = node->input; // 起点加速度为第一个节点的输入
   }
 
-  start_end_derivatives.push_back(start_vel_);
-  start_end_derivatives.push_back(end_vel);
-  start_end_derivatives.push_back(start_acc);
-  start_end_derivatives.push_back(end_acc);
+  // 将起点和终点的导数信息加入结果
+  start_end_derivatives.push_back(start_vel_); // 起点速度
+  start_end_derivatives.push_back(end_vel);    // 终点速度
+  start_end_derivatives.push_back(start_acc);  // 起点加速度
+  start_end_derivatives.push_back(end_acc);    // 终点加速度
 }
+
 
 std::vector<PathNodePtr> KinodynamicAstar::getVisitedNodes()
 {

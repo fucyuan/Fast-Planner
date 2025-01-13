@@ -186,6 +186,8 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
 
   t_search = (ros::Time::now() - t1).toSec();  // 计算搜索时间
 
+  std::cout << "[kino replan]: search time: " << t_search << std::endl;
+
   // -------------------
   // 将路径参数化为B样条
   // -------------------
@@ -194,7 +196,7 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
   kino_path_finder_->getSamples(ts, point_set, start_end_derivatives);  // 获取采样点和导数
 
   Eigen::MatrixXd ctrl_pts;
-  NonUniformBspline::parameterizeToBspline(ts, point_set, start_end_derivatives, ctrl_pts);
+  NonUniformBspline::parameterizeToBspline(ts, point_set, start_end_derivatives, ctrl_pts);//B样条控制点的获得
   NonUniformBspline init(ctrl_pts, 3, ts);  // 初始化B样条
 
   // -------------------
@@ -212,6 +214,7 @@ bool FastPlannerManager::kinodynamicReplan(Eigen::Vector3d start_pt, Eigen::Vect
   // 调用优化器对轨迹进行优化
 
   t_opt = (ros::Time::now() - t1).toSec();  // 计算优化时间
+  std::cout<<"t-optimize"<<t_opt<<std::endl;
 
   // -------------------
   // 迭代时间调整
